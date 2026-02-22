@@ -8,7 +8,7 @@ from pathlib import Path
 
 # ──────────────────────────── Paths ────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = BASE_DIR / "data" / "sri_lanka_flood_risk_10000.csv"
+DATA_PATH = BASE_DIR / "data" / "sri_lanka_flood_risk.csv"
 MODEL_PATH = BASE_DIR / "models" / "flood_model.pkl"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 METRICS_PATH = OUTPUTS_DIR / "metrics.json"

@@ -17,7 +17,7 @@ Sri Lanka is highly vulnerable to monsoon-driven flooding, with events affecting
 
 ## 2. Dataset Description
 
-- **File:** `data/sri_lanka_flood_risk_10000.csv`
+- **File:** `data/sri_lanka_flood_risk.csv`
 - **Size:** 9,986 usable records (after validation)
 - **Target Variable:** `flood_occurred` (0 = No Flood, 1 = Flood)
 - **Class Distribution:** 78.02% No Flood (7,791) / 21.98% Flood (2,195) — imbalanced
@@ -331,7 +331,7 @@ pytest tests/ -v
 ```
 .
 ├── data/
-│   └── sri_lanka_flood_risk_10000.csv
+│   └── sri_lanka_flood_risk.csv
 ├── models/
 │   └── flood_model.pkl
 ├── outputs/
