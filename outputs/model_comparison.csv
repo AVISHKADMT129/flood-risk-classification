@@ -1,0 +1,4 @@
+model,best_params,accuracy,precision,recall,f1,roc_auc,pr_auc
+LogisticRegression,"{'C': 0.1, 'class_weight': 'balanced', 'penalty': 'l2', 'solver': 'lbfgs'}",0.7838,0.5051,0.795,0.6177,0.8603,0.688
+RandomForest,"{'class_weight': 'balanced', 'max_depth': 16, 'min_samples_leaf': 1, 'min_samples_split': 5, 'n_estimators': 200}",0.8093,0.5497,0.7312,0.6276,0.8559,0.6677
+GradientBoosting,"{'learning_rate': 0.05, 'max_depth': 3, 'n_estimators': 150}",0.8478,0.6991,0.5399,0.6093,0.8598,0.683
