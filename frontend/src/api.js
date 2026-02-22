@@ -6,6 +6,12 @@ export async function fetchMetadata() {
   return res.json();
 }
 
+export async function fetchExplainability() {
+  const res = await fetch(`${API_BASE}/explainability`);
+  if (!res.ok) throw new Error("Failed to fetch explainability data");
+  return res.json();
+}
+
 export async function fetchPrediction(inputData) {
   const res = await fetch(`${API_BASE}/predict`, {
     method: "POST",

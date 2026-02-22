@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.schemas import PredictionInput, PredictionOutput, HealthResponse
 from api.model_loader import get_model
 from src.inference import predict
+from src.explainability import get_global_explainability
 from src.utils import get_categorical_metadata, get_district_mappings, get_feature_statistics
 from src.config import METRICS_PATH
 
@@ -52,6 +53,16 @@ def get_metadata():
         "feature_stats": get_feature_statistics(),
         "model_metrics": model_metrics,
     }
+
+
+@app.get("/explainability")
+def get_explainability():
+    """Return global explainability data: feature importance and PDP curves."""
+    try:
+        model = get_model()
+        return get_global_explainability(model)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/predict", response_model=PredictionOutput)

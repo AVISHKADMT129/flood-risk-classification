@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import FeatureImportanceChart from "./FeatureImportanceChart";
 import InputComparisonChart from "./InputComparisonChart";
-import ShapWaterfallChart from "./ShapWaterfallChart";
 
 const R = 50;
 const CIRC = 2 * Math.PI * R;
@@ -27,20 +26,47 @@ const RECOMMENDATIONS = {
 };
 
 function CircularGauge({ pct, riskClass }) {
-  const offset = CIRC - (parseFloat(pct) / 100) * CIRC;
+  const targetOffset = CIRC - (parseFloat(pct) / 100) * CIRC;
+  const [animOffset, setAnimOffset] = useState(CIRC);
+  const [displayPct, setDisplayPct] = useState(0);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    // Trigger the CSS transition after mount
+    const t = requestAnimationFrame(() => setAnimOffset(targetOffset));
+
+    // Animate the number counter
+    const target = parseFloat(pct);
+    const duration = 1200;
+    const start = performance.now();
+    const tick = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplayPct((eased * target).toFixed(1));
+      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(t);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [pct, targetOffset]);
+
   return (
-    <div className="gauge-wrap" style={{ position: "relative" }}>
+    <div className="gauge-wrap">
       <svg className="gauge-svg" viewBox="0 0 120 120">
         <circle className="gauge-track" cx="60" cy="60" r={R} />
         <circle
           className={`gauge-fill gauge-fill-${riskClass}`}
           cx="60" cy="60" r={R}
           strokeDasharray={CIRC}
-          strokeDashoffset={offset}
+          strokeDashoffset={animOffset}
         />
       </svg>
       <div className="gauge-text">
-        <span className={`gauge-pct gauge-pct-${riskClass}`}>{pct}%</span>
+        <span className={`gauge-pct gauge-pct-${riskClass}`}>{displayPct}%</span>
         <span className="gauge-sub">Probability</span>
       </div>
     </div>
@@ -48,8 +74,8 @@ function CircularGauge({ pct, riskClass }) {
 }
 
 const TABS = [
-  { id: "features", label: "Feature Analysis" },
-  { id: "context", label: "Input Context" },
+  { id: "features", label: "This Prediction" },
+  { id: "context", label: "Input vs Average" },
   { id: "safety", label: "Safety Tips" },
 ];
 
@@ -87,7 +113,6 @@ export default function PredictionResult({ result, loading }) {
   const risk = result.risk_level;
   const riskClass = risk === "Low" ? "low" : risk === "Medium" ? "med" : "high";
   const contributions = result.feature_contributions || [];
-  const shapValues = result.shap_values || [];
   const tips = RECOMMENDATIONS[risk] || RECOMMENDATIONS.Low;
   const probNum = parseFloat(pct);
 
@@ -152,11 +177,7 @@ export default function PredictionResult({ result, loading }) {
 
         <div className="result-tab-content">
           {activeTab === "features" && (
-            <>
-              <FeatureImportanceChart contributions={contributions} />
-              <div className="result-divider" />
-              <ShapWaterfallChart shapValues={shapValues} />
-            </>
+            <FeatureImportanceChart contributions={contributions} />
           )}
 
           {activeTab === "context" && (

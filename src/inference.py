@@ -9,8 +9,12 @@ import joblib
 import numpy as np
 import pandas as pd
 import shap
+import lime.lime_tabular
 
-from src.config import MODEL_PATH, ALL_FEATURES, RISK_LOW_THRESHOLD, RISK_HIGH_THRESHOLD
+from src.config import (
+    MODEL_PATH, ALL_FEATURES, RISK_LOW_THRESHOLD, RISK_HIGH_THRESHOLD,
+    DATA_PATH, TARGET, TEST_SIZE, RANDOM_STATE,
+)
 
 # Human-readable display names for features
 FEATURE_DISPLAY_NAMES = {
@@ -30,6 +34,7 @@ FEATURE_DISPLAY_NAMES = {
 
 # Cached dataset statistics (loaded once)
 _cached_stats = None
+_cached_train_data = None
 
 
 def _get_stats():
@@ -39,6 +44,21 @@ def _get_stats():
         from src.utils import get_feature_statistics
         _cached_stats = get_feature_statistics()
     return _cached_stats
+
+
+def _get_training_data():
+    """Load and cache the training data for LIME explainer."""
+    global _cached_train_data
+    if _cached_train_data is None:
+        from sklearn.model_selection import train_test_split
+        df = pd.read_csv(DATA_PATH)
+        X = df[ALL_FEATURES]
+        y = df[TARGET]
+        X_train, _, _, _ = train_test_split(
+            X, y, test_size=TEST_SIZE, stratify=y, random_state=RANDOM_STATE
+        )
+        _cached_train_data = X_train
+    return _cached_train_data
 
 
 def load_model(path=None):
@@ -213,6 +233,67 @@ def _get_shap_values(model, df, top_n=7):
         return []
 
 
+def _get_lime_values(model, df, top_n=7):
+    """
+    Compute LIME explanation for a single prediction.
+
+    Returns list of {feature, display_name, lime_weight} sorted by |weight|.
+    """
+    preprocessor = model.named_steps["preprocessor"]
+    clf = model.named_steps["model"]
+
+    try:
+        feature_names = preprocessor.get_feature_names_out()
+    except AttributeError:
+        return []
+
+    feature_names = [
+        name.replace("cat__", "").replace("num__", "")
+        for name in feature_names
+    ]
+
+    X_transformed = preprocessor.transform(df)
+    training_data = _get_training_data()
+    X_train_transformed = preprocessor.transform(training_data)
+
+    try:
+        explainer = lime.lime_tabular.LimeTabularExplainer(
+            training_data=X_train_transformed,
+            feature_names=feature_names,
+            class_names=["No Flood", "Flood"],
+            mode="classification",
+            random_state=RANDOM_STATE,
+        )
+
+        explanation = explainer.explain_instance(
+            X_transformed[0] if hasattr(X_transformed, '__getitem__') else X_transformed.toarray()[0],
+            clf.predict_proba,
+            num_features=top_n,
+            labels=(1,),
+        )
+
+        lime_results = []
+        for feat_idx_or_name, weight in explanation.as_list(label=1):
+            # LIME returns feature descriptions like "feature_name <= 0.5"
+            # Find the matching feature name
+            display = feat_idx_or_name
+            for fname in feature_names:
+                if fname in feat_idx_or_name:
+                    display = FEATURE_DISPLAY_NAMES.get(fname, fname.replace("_", " ").title())
+                    break
+
+            lime_results.append({
+                "feature": feat_idx_or_name,
+                "display_name": display,
+                "lime_weight": round(float(weight), 4),
+            })
+
+        lime_results.sort(key=lambda x: abs(x["lime_weight"]), reverse=True)
+        return lime_results[:top_n]
+    except Exception:
+        return []
+
+
 def predict(model, input_data: dict):
     """
     Run prediction on a single input sample.
@@ -235,6 +316,7 @@ def predict(model, input_data: dict):
         risk_level, probability, input_context, feature_contributions
     )
     shap_values = _get_shap_values(model, df)
+    lime_values = _get_lime_values(model, df)
 
     return {
         "prediction": prediction,
@@ -244,6 +326,7 @@ def predict(model, input_data: dict):
         "input_context": input_context,
         "explanation": explanation,
         "shap_values": shap_values,
+        "lime_values": lime_values,
     }
 
 

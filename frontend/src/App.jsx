@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import PredictionForm from "./components/PredictionForm";
 import PredictionResult from "./components/PredictionResult";
-import { fetchMetadata, fetchPrediction } from "./api";
+import ModelInfoCard from "./components/ModelInfoCard";
+import ExplainabilitySection from "./components/ExplainabilitySection";
+import { fetchMetadata, fetchPrediction, fetchExplainability } from "./api";
 
 function App() {
   const [metadata, setMetadata] = useState({});
@@ -10,6 +12,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [metaLoading, setMetaLoading] = useState(true);
+  const [explainData, setExplainData] = useState(null);
+  const [showPerformance, setShowPerformance] = useState(false);
+  const [showExplainability, setShowExplainability] = useState(false);
+  const resultRef = useRef(null);
 
   useEffect(() => {
     fetchMetadata()
@@ -21,11 +27,17 @@ function App() {
         setError("Unable to connect to the API server. Please make sure it is running.");
         setMetaLoading(false);
       });
+
+    fetchExplainability()
+      .then(setExplainData)
+      .catch(() => {});
   }, []);
 
   const handleClear = () => {
     setResult(null);
     setError(null);
+    setShowPerformance(false);
+    setShowExplainability(false);
   };
 
   const handlePredict = async (formData) => {
@@ -35,6 +47,9 @@ function App() {
     try {
       const prediction = await fetchPrediction(formData);
       setResult(prediction);
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,11 +117,61 @@ function App() {
                   loading={loading}
                 />
               </section>
-              <section className="result-section">
+              <section className="result-section" ref={resultRef}>
                 <PredictionResult result={result} loading={loading} />
               </section>
             </div>
 
+            {metadata.model_metrics && (
+              <div className={`accordion ${showPerformance ? "accordion-open" : ""}`}>
+                <button
+                  className="accordion-trigger"
+                  onClick={() => setShowPerformance((v) => !v)}
+                >
+                  <div className="accordion-icon accordion-icon-blue">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
+                    </svg>
+                  </div>
+                  <div className="accordion-label">
+                    <div className="accordion-title">Model Performance</div>
+                    <div className="accordion-subtitle">Accuracy, confusion matrix, and model comparison charts</div>
+                  </div>
+                  <span className="accordion-chevron">{"\u25BC"}</span>
+                </button>
+                <div className="accordion-body">
+                  <div className="accordion-body-inner">
+                    <ModelInfoCard metrics={metadata.model_metrics} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className={`accordion ${showExplainability ? "accordion-open" : ""}`}>
+              <button
+                className="accordion-trigger"
+                onClick={() => setShowExplainability((v) => !v)}
+              >
+                <div className="accordion-icon accordion-icon-green">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                </div>
+                <div className="accordion-label">
+                  <div className="accordion-title">Model Explainability</div>
+                  <div className="accordion-subtitle">SHAP, LIME, feature importance, and partial dependence plots</div>
+                </div>
+                <span className="accordion-chevron">{"\u25BC"}</span>
+              </button>
+              <div className="accordion-body">
+                <div className="accordion-body-inner">
+                  <ExplainabilitySection
+                    globalData={explainData}
+                    predictionResult={result}
+                  />
+                </div>
+              </div>
+            </div>
           </>
         )}
       </main>

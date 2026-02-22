@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 const NUMERIC_FIELDS = [
   { name: "rainfall_mm", label: "Rainfall", unit: "mm", min: 0, sliderMax: 600, step: 1, inputStep: 0.1 },
@@ -50,6 +50,9 @@ const SCENARIOS = [
 
 export default function PredictionForm({ metadata, onSubmit, onClear, loading }) {
   const [form, setForm] = useState(INITIAL_VALUES);
+  const [districtSearch, setDistrictSearch] = useState("");
+  const [districtOpen, setDistrictOpen] = useState(false);
+  const districtRef = useRef(null);
 
   const districtMappings = metadata.district_mappings || {};
   const featureStats = metadata.feature_stats || {};
@@ -58,10 +61,25 @@ export default function PredictionForm({ metadata, onSubmit, onClear, loading })
     [districtMappings]
   );
 
+  const filteredDistricts = useMemo(
+    () => districts.filter((d) => d.toLowerCase().includes(districtSearch.toLowerCase())),
+    [districts, districtSearch]
+  );
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (districtRef.current && !districtRef.current.contains(e.target)) {
+        setDistrictOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const currentMapping = districtMappings[form.district] || null;
 
-  const handleDistrictChange = (e) => {
-    const district = e.target.value;
+  const selectDistrict = (district) => {
     const mapping = districtMappings[district];
     if (mapping) {
       setForm((prev) => ({
@@ -82,6 +100,8 @@ export default function PredictionForm({ metadata, onSubmit, onClear, loading })
         drainage_quality: "",
       }));
     }
+    setDistrictSearch("");
+    setDistrictOpen(false);
   };
 
   const handleYearMonth = (e) => {
@@ -100,6 +120,8 @@ export default function PredictionForm({ metadata, onSubmit, onClear, loading })
 
   const handleClear = () => {
     setForm(INITIAL_VALUES);
+    setDistrictSearch("");
+    setDistrictOpen(false);
     onClear();
   };
 
@@ -110,22 +132,55 @@ export default function PredictionForm({ metadata, onSubmit, onClear, loading })
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* District */}
-      <div className="district-selector">
-        <label className="district-label" htmlFor="district">Select District</label>
-        <select
-          id="district"
-          name="district"
-          value={form.district}
-          onChange={handleDistrictChange}
-          required
-          className="district-select"
+      {/* District — searchable dropdown */}
+      <div className="district-selector" ref={districtRef}>
+        <label className="district-label">Select District</label>
+        <button
+          type="button"
+          className={`district-select district-trigger ${districtOpen ? "district-trigger-open" : ""}`}
+          onClick={() => setDistrictOpen((v) => !v)}
         >
-          <option value="">Choose a district...</option>
-          {districts.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
+          <span className={form.district ? "" : "district-placeholder"}>
+            {form.district || "Choose a district..."}
+          </span>
+          <svg className="district-chevron" width="12" height="8" viewBox="0 0 12 8" fill="none">
+            <path d="M1 1.5L6 6.5L11 1.5" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        {/* Hidden input for form validation */}
+        <input type="text" required value={form.district} onChange={() => {}} tabIndex={-1} style={{ position: "absolute", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} />
+        {districtOpen && (
+          <div className="district-dropdown">
+            <div className="district-search-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+              </svg>
+              <input
+                type="text"
+                className="district-search"
+                placeholder="Search districts..."
+                value={districtSearch}
+                onChange={(e) => setDistrictSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <ul className="district-list">
+              {filteredDistricts.length === 0 ? (
+                <li className="district-no-match">No districts found</li>
+              ) : (
+                filteredDistricts.map((d) => (
+                  <li
+                    key={d}
+                    className={`district-option ${d === form.district ? "district-option-active" : ""}`}
+                    onClick={() => selectDistrict(d)}
+                  >
+                    {d}
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Auto-filled info */}
@@ -251,7 +306,7 @@ export default function PredictionForm({ metadata, onSubmit, onClear, loading })
                 value={numVal}
                 onChange={handleMetricInput}
                 style={{
-                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${fillPct}%, #e2e8f0 ${fillPct}%, #e2e8f0 100%)`,
+                  background: `linear-gradient(to right, #22d3ee 0%, #22d3ee ${fillPct}%, rgba(255,255,255,0.1) ${fillPct}%, rgba(255,255,255,0.1) 100%)`,
                 }}
               />
 

@@ -39,6 +39,12 @@ class ShapValue(BaseModel):
     shap_value: float
 
 
+class LimeValue(BaseModel):
+    feature: str
+    display_name: str
+    lime_weight: float
+
+
 class PredictionOutput(BaseModel):
     prediction: int
     probability: float
@@ -47,6 +53,7 @@ class PredictionOutput(BaseModel):
     input_context: dict[str, InputContext] = {}
     explanation: str = ""
     shap_values: list[ShapValue] = []
+    lime_values: list[LimeValue] = []
 
 
 class HealthResponse(BaseModel):

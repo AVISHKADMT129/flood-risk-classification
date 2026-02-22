@@ -30,7 +30,7 @@ export default function FeatureImportanceChart({ contributions }) {
             type="category"
             dataKey="display_name"
             width={100}
-            tick={{ fontSize: 11, fill: "#64748b", fontWeight: 500 }}
+            tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 500 }}
             axisLine={false}
             tickLine={false}
           />
@@ -39,9 +39,11 @@ export default function FeatureImportanceChart({ contributions }) {
             labelStyle={{ fontWeight: 600 }}
             contentStyle={{
               borderRadius: 8,
-              border: "1px solid #e2e8f0",
+              border: "1px solid rgba(255,255,255,0.1)",
               fontSize: 12,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              background: "rgba(15,23,42,0.9)",
+              color: "#f1f5f9",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
             }}
           />
           <Bar dataKey="importance" radius={[0, 4, 4, 0]} barSize={18}>
